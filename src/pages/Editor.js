@@ -5,6 +5,8 @@ import * as fabric from 'fabric'
 import Upload from '../components/Upload';
 import Download from '../components/Download';
 
+import { LiaMarkerSolid } from "react-icons/lia";
+
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.mjs`;
 
 function Editor() {
@@ -15,6 +17,7 @@ function Editor() {
   const [width, setwidth] = useState(0);
   const [pageno, setpageno] = useState(1);
   let [pagesize, setpageSize] = useState(2);
+  let [zoom, setzoom] = useState(1);
   const [currentfile, setcurrentfile]= useState(`http://localhost:5000/${filePathnew}`);
   const [pdffile, setpdffile] = useState();
   const [color,setcolor]=useState("red");
@@ -25,14 +28,14 @@ function Editor() {
 
   console.log(filePathnew);
 
-  const pageZoomin =()=>{
-    pagesize+= 0.1;
-    setpageSize(pagesize);
+  const pageZoomin = async ()=>{
+    zoom+= 0.1;
+    setzoom(zoom);
   }
 
-  const pageZoomOut =()=>{
-    pagesize-= 0.1;
-    setpageSize(pagesize);
+  const pageZoomOut = async ()=>{
+    zoom-= 0.1;
+    setzoom(zoom);
   }
 
   const handleClear=()=>{
@@ -76,7 +79,7 @@ function Editor() {
           const highlight = new fabric.Rect({
             left: 100,
             top: 100,
-            width: 20,
+            width: 100,
             height: 20,
             fill: color,
             opacity: 0.5,
@@ -136,6 +139,14 @@ function Editor() {
       // Get the first page of the PDF
       const page = await pdf.getPage(Number(pageno));
 
+      const contents = await page.getTextContent();
+
+      // const items = contents.items.map((item)=>{
+      //    console.log(item.str)
+      //    console.log(item.fontName)
+      // })
+
+
       // Set up the canvas for rendering the page
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
@@ -143,6 +154,7 @@ function Editor() {
       const viewport = page.getViewport({ scale: pagesize });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
+      console.log(viewport.height,viewport.width, pagesize);
       setheight(viewport.height);
       setwidth(viewport.width);
 
@@ -155,51 +167,63 @@ function Editor() {
 
 // Initialize Fabric.js canvas
 const fabricCanvasElement = fabricCanvasRef.current;
-fabricCanvasElement.width = viewport.width;
-fabricCanvasElement.height = viewport.height;
+// fabricCanvasElement.width = fabwidth;
+// fabricCanvasElement.height = fabheight;
 
-const fabricCanvasInstance = new fabric.Canvas(fabricCanvasElement);
+
+const fabricCanvasInstance = new fabric.Canvas('fabcanvas');
+// fabricCanvasInstance.requestRenderAll();
 fabricCanvasInstanceRef.current = fabricCanvasInstance;
+// const fabricc = fabricCanvasInstanceRef.current;
+// fabricc.setwidth(500);
+// fabricc.setheight(100);
+
 
 return () => {
-  fabricCanvasElement.dispose();
   canvas.dispose();
   
 };
     };
 
     loadPdf();
-  }, [currentfile, pagesize,pageno,pdffile,filePathnew]);
+  }, [currentfile,pageno,pdffile,filePathnew,pagesize]);
 
   return (
     <>
     
 
-    <div style={{display:"flex", alignItems:"center", gap:"10px", backgroundColor:"black"}}>
-    <h3 style={{color:"lightgrey"}}>PDF Editor</h3>
-      {<Upload onUpload={setFilePathnew} />}
-      <label style={{color:"white"}}>Page No:</label>
-      <input type="number" value={pageno} onChange={(e) => setpageno(e.target.value)} />
+    <div style={{display:"flex", alignItems:"center", justifyContent:"space-around", position:"fixed",zIndex:5, backgroundColor:"rgb(208 212 249)", width:"1285px",margin:"0px"}}>
+    <h3 style={{color:"#4245a8"}}>PDF Editor</h3>
+      {/* {<Upload onUpload={setFilePathnew} />} */}
+      {/* <label>Page No:</label> */}
       <input type="color" value={color} onChange={(e)=>{setcolor(e.target.value)}} />
-      <button onClick={()=>handleEdit("text")}>Add Text</button>
-      <button onClick={()=>handleEdit("strike line")}>Add Strike</button>
-      <button onClick={()=>handleEdit("highlight")}>Add Highlight</button>
-      <button onClick={()=>handleClear()}>Clear All</button>
-      <button onClick={()=>saveEdit()}>Save</button>
-      <button onClick={()=>pageZoomin()}>+</button>
-      <button onClick={()=>pageZoomOut()}>-</button>
+
+
+
+      <p onClick={()=>handleEdit("text")}><i style={{color:"#4245a8", fontSize:"25px"}} class="fa fa-text-width"></i></p>
+      <p onClick={()=>handleEdit("strike line")}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-strikethrough"></i></p>
+      <p onClick={()=>handleEdit("highlight")}><LiaMarkerSolid  style={{color:"#4245a8", fontSize:"23px"}}/></p>
+      <p onClick={()=>handleClear()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-eraser"></i></p>
+      <input style={{border:"2px solid #4245a8", width:"30px",height:"30px"}} type="number" value={pageno} onChange={(e) => setpageno(e.target.value)} />
+      <p onClick={()=>pageZoomin()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-search-plus"></i></p>
+      <p onClick={()=>pageZoomOut()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-search-minus"></i></p>
+      <p onClick={()=>saveEdit()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-save"></i></p>
       {<Download editedFile={editedFile}/>}
     </div>
     
-    <div style={{position: "relative"}}>
+    
     {filePathnew ? (<>
-      <canvas ref={canvasRef} style={{textAlign:"center", position: "absolute", border: '1px solid #ccc' }} />
-      <canvas ref={fabricCanvasRef} style={{textAlign:"center", position: "absolute",zIndex: 1 }}
-        /></>
+      <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px"}}>
+      <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}} />
+      <canvas id="fabcanvas" height={1584} width={1224} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}}/>
+      </div></>
     ) : (
-      <p>Select a PDF</p>
+      <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
+      <div style={{position:"absolute",border:"2px solid #4245a8", height:"420px", width:"1020px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
+      {<Upload onUpload={setFilePathnew} />}
+      </div></div>
     )}
-  </div>
+
   </>
   );
 }
