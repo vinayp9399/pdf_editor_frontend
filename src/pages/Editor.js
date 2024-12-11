@@ -16,17 +16,73 @@ function Editor() {
   const [height, setheight] = useState(0);
   const [width, setwidth] = useState(0);
   const [pageno, setpageno] = useState(1);
-  let [pagesize, setpageSize] = useState(2);
+  let [pagesize, setpageSize] = useState(1);
   let [zoom, setzoom] = useState(1);
   const [currentfile, setcurrentfile]= useState(`http://localhost:5000/${filePathnew}`);
   const [pdffile, setpdffile] = useState();
-  const [color,setcolor]=useState("red");
+  const [color,setcolor]=useState("black");
+  const [pagecontents, setpagecontent] = useState();
+  const [operatorlist, setoperatorlist] = useState();
+
+  const [currentpage, setcurrentpage] =useState();
 
   const canvasRef = useRef();
   const fabricCanvasRef = useRef(null);
   const fabricCanvasInstanceRef = useRef();
 
   console.log(filePathnew);
+
+  const handleEditContent = async ()=>{
+    const fabricCanvas = fabricCanvasInstanceRef.current;
+    console.log(pagecontents);
+    console.log(currentpage);
+
+    const response = await fetch(currentfile);
+    const existingPdfBytes = await response.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+    pagecontents.items.forEach((item) => {
+      const transform = item.transform;
+      const x = transform[4]; // X position
+      const y = height - transform[5]; // Adjust Y for Fabric.js
+      const fontName = item.fontName || 'Unknown';
+
+      const commonObjs = currentpage.commonObjs;
+
+      const font = commonObjs.get(fontName);
+
+      const fontFamily = font.fallbackName;
+      let fontWeight = 'normal';
+      let fontStyle = 'normal';
+
+      const isBold = font.name && font.name.toLowerCase().includes('bold');
+    const isItalic = font.name && font.name.toLowerCase().includes('italic');
+
+    if (isBold) {
+      fontWeight = 'bold';
+  }
+  if (isItalic) {
+      fontStyle = 'italic';
+  }
+
+  console.log(fontWeight, fontStyle);
+      
+
+      console.log(item.str, fontFamily)
+  
+      const text = new fabric.IText(item.str, {
+        left: x,
+        top: y-8,
+        fontSize: transform[0]-1, // Approximate font size
+        fontFamily: fontFamily,
+        fontWeight: fontWeight,
+        fontStyle: fontStyle,
+        fill: 'black',
+      });
+
+      fabricCanvas.add(text);
+      setpdffile(pdfDoc);
+    })};
 
   const pageZoomin = async ()=>{
     zoom+= 0.1;
@@ -42,6 +98,9 @@ function Editor() {
     const fabricCanvas = fabricCanvasInstanceRef.current;
     fabricCanvas.clear();
   }
+
+
+  
 
   const handleEdit = async (type) => {
     console.log(width,height);
@@ -108,7 +167,7 @@ function Editor() {
     const firstPage = pages[Number(pageno)-1];
     const dataUrl = fabricCanvas.toDataURL({ format: 'png' });
     const pngImage = await pdffile.embedPng(dataUrl);
-    const imageDims = pngImage.scaleToFit(width, height-792);
+    const imageDims = pngImage.scaleToFit(width, height);
   
     firstPage.drawImage(pngImage, {
       x: 0,
@@ -130,7 +189,7 @@ function Editor() {
   useEffect(() => {
     const loadPdf = async () => {
       setcurrentfile(`http://localhost:5000/${filePathnew}`);
-      console.log(filePathnew);
+      // console.log(filePathnew);
       if (!filePathnew) return;
 
       // Get the PDF document
@@ -140,11 +199,20 @@ function Editor() {
       const page = await pdf.getPage(Number(pageno));
 
       const contents = await page.getTextContent();
+      const operatorlist = await page.getOperatorList();
 
-      // const items = contents.items.map((item)=>{
-      //    console.log(item.str)
-      //    console.log(item.fontName)
-      // })
+      // const commonObjs = page.commonObjs;
+      // const fontkey=operatorlist.argsArray[6][0].slice(0,5);
+      // const font = commonObjs.get(`${fontkey}f1`);
+      // console.log(fontkey, font.name);
+      // console.log(commonObjs, commonObjs.has(`${fontkey}f1`));
+
+
+      
+
+      setcurrentpage(page);
+      setpagecontent(contents);
+      setoperatorlist(operatorlist);
 
 
       // Set up the canvas for rendering the page
@@ -197,7 +265,7 @@ return () => {
       {/* {<Upload onUpload={setFilePathnew} />} */}
       {/* <label>Page No:</label> */}
       <input type="color" value={color} onChange={(e)=>{setcolor(e.target.value)}} />
-
+      <p onClick={()=>handleEditContent()}>Edit Content</p>
 
 
       <p onClick={()=>handleEdit("text")}><i style={{color:"#4245a8", fontSize:"25px"}} class="fa fa-text-width"></i></p>
@@ -215,7 +283,7 @@ return () => {
     {filePathnew ? (<>
       <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px"}}>
       <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}} />
-      <canvas id="fabcanvas" height={1584} width={1224} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}}/>
+      <canvas id="fabcanvas" height={792} width={612} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}}/>
       </div></>
     ) : (
       <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
