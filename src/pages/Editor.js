@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { degrees, PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjs from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
+import { getDocument, OPS } from 'pdfjs-dist';
 import * as fabric from 'fabric'
 import Upload from '../components/Upload';
 import Download from '../components/Download';
+
+
 
 import { LiaMarkerSolid } from "react-icons/lia";
 
@@ -13,16 +17,19 @@ function Editor() {
   const [filePathnew, setFilePathnew] = useState(null);
   const [editedFile, setEditedFile] = useState(null);
 
+  const [img, setimg] =useState();
+
   const [height, setheight] = useState(0);
   const [width, setwidth] = useState(0);
   const [pageno, setpageno] = useState(1);
-  let [pagesize, setpageSize] = useState(1);
+  let [pagesize, setpageSize] = useState(2);
   let [zoom, setzoom] = useState(1);
-  const [currentfile, setcurrentfile]= useState(`http://localhost:5000/${filePathnew}`);
+  const [currentfile, setcurrentfile]= useState('');
   const [pdffile, setpdffile] = useState();
   const [color,setcolor]=useState("black");
   const [pagecontents, setpagecontent] = useState();
   const [operatorlist, setoperatorlist] = useState();
+  const [isediting, setisediting] = useState(false);
 
   const [currentpage, setcurrentpage] =useState();
 
@@ -30,21 +37,32 @@ function Editor() {
   const fabricCanvasRef = useRef(null);
   const fabricCanvasInstanceRef = useRef();
 
-  console.log(filePathnew);
+  // console.log(filePathnew);
 
   const handleEditContent = async ()=>{
     const fabricCanvas = fabricCanvasInstanceRef.current;
-    console.log(pagecontents);
-    console.log(currentpage);
+    fabricCanvas.setZoom(2)
+    console.log(pagecontents.items);
+    // console.log(currentpage);
+    // console.log(pdffile)
+
+    // const pages = pdffile.getPages();
+    // const firstPage = pages[Number(pageno)-1];
+    // const dataUrl = fabricCanvas.toDataURL({ format: 'png' });
+    // const pngImage = await pdffile.embedPng(dataUrl);
 
     const response = await fetch(currentfile);
     const existingPdfBytes = await response.arrayBuffer();
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[Number(pageno)-1];
+
+          
     pagecontents.items.forEach((item) => {
       const transform = item.transform;
       const x = transform[4]; // X position
-      const y = height - transform[5]; // Adjust Y for Fabric.js
+      const y = (height/2) - transform[5]; // Adjust Y for Fabric.js
       const fontName = item.fontName || 'Unknown';
 
       const commonObjs = currentpage.commonObjs;
@@ -65,11 +83,14 @@ function Editor() {
       fontStyle = 'italic';
   }
 
-  console.log(fontWeight, fontStyle);
+  // console.log(fontWeight, fontStyle);
       
 
-      console.log(item.str, fontFamily)
-  
+      console.log(item.str, )
+
+      if(item.str==" "){
+      
+      }else{
       const text = new fabric.IText(item.str, {
         left: x,
         top: y-8,
@@ -78,11 +99,32 @@ function Editor() {
         fontWeight: fontWeight,
         fontStyle: fontStyle,
         fill: 'black',
+        isediting:true,
+        // backgroundColor: "white",
       });
-
       fabricCanvas.add(text);
+      firstPage.drawRectangle({
+        x: x, // X-coordinate
+        y: transform[5]-2, // Y-coordinate (from the bottom of the page)
+        width: item.width, // Width of the rectangle
+        height: item.height, // Height of the rectangle
+        color: rgb(1, 1, 1), // Color (red in this case)
+      });
+      // console.log(item.width, item.height,x,y);
+    }
+    
+    // item.str = ""
       setpdffile(pdfDoc);
-    })};
+    })
+
+    setisediting(true);
+
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    setcurrentfile(URL.createObjectURL(blob));
+    // setEditedFile(URL.createObjectURL(blob));
+    setpdffile(pdfDoc);
+  };
 
   const pageZoomin = async ()=>{
     zoom+= 0.1;
@@ -103,7 +145,7 @@ function Editor() {
   
 
   const handleEdit = async (type) => {
-    console.log(width,height);
+    // console.log(width,height);
     const response = await fetch(currentfile);
     const existingPdfBytes = await response.arrayBuffer();
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
@@ -163,20 +205,75 @@ function Editor() {
 
   const saveEdit= async ()=>{
     const fabricCanvas = fabricCanvasInstanceRef.current;
-    const pages = pdffile.getPages();
-    const firstPage = pages[Number(pageno)-1];
     const dataUrl = fabricCanvas.toDataURL({ format: 'png' });
     const pngImage = await pdffile.embedPng(dataUrl);
     const imageDims = pngImage.scaleToFit(width, height);
-  
-    firstPage.drawImage(pngImage, {
-      x: 0,
-      y: 0,
-      width: imageDims.width,
-      height: imageDims.height,
-    });
 
-    const pdfBytes = await pdffile.save();
+    const response = await fetch(currentfile);
+    const existingPdfBytes = await response.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[Number(pageno)-1];
+
+    const objects = fabricCanvas.getObjects();
+
+    const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+// Filter for text objects
+const textObjects = objects.filter(obj => obj.type === 'text' || obj.type === 'i-text');
+
+// Extract text and their properties
+const textData = textObjects.map(textObj => ({
+  text: textObj.text,
+  left: textObj.left,
+  top: textObj.top+8,
+  fontSize: textObj.fontSize,
+  fontFamily: textObj.fontFamily,
+  fontStyle:textObj.fontStyle,
+  fontWeight:textObj.fontWeight,
+  fill: textObj.fill,
+}));
+
+console.log(textData);
+
+textData.forEach(item => {
+  if(item.fontWeight=='bold'){
+  firstPage.drawText(item.text, {
+    x: item.left,
+    y: height/2-item.top,
+    size: item.fontSize,
+    font: boldFont,
+    color: rgb(0,0,0), // Black text
+  });}
+  if(item.fontStyle=='italic'){
+    firstPage.drawText(item.text, {
+      x: item.left,
+      y: height/2-item.top,
+      size: item.fontSize,
+      font: italicFont,
+      color: rgb(0,0,0), // Black text
+    });}
+    if(item.fontStyle=='normal'&&item.fontWeight!='bold'){
+      firstPage.drawText(item.text, {
+        x: item.left,
+        y: height/2-item.top,
+        size: item.fontSize,
+        font: regularFont,
+        color: rgb(0,0,0), // Black text
+      });}
+
+});
+  
+    // firstPage.drawImage(pngImage, {
+    //   x: 0,
+    //   y: 0,
+    //   width: imageDims.width,
+    //   height: imageDims.height,
+    // });
+
+    const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     setcurrentfile(URL.createObjectURL(blob));
     setEditedFile(URL.createObjectURL(blob));
@@ -188,7 +285,9 @@ function Editor() {
 
   useEffect(() => {
     const loadPdf = async () => {
-      setcurrentfile(`http://localhost:5000/${filePathnew}`);
+      if(isediting==false){
+      setcurrentfile(`http://localhost:5000/${filePathnew}`);}
+
       // console.log(filePathnew);
       if (!filePathnew) return;
 
@@ -201,15 +300,18 @@ function Editor() {
       const contents = await page.getTextContent();
       const operatorlist = await page.getOperatorList();
 
+
+      
+
       // const commonObjs = page.commonObjs;
       // const fontkey=operatorlist.argsArray[6][0].slice(0,5);
       // const font = commonObjs.get(`${fontkey}f1`);
       // console.log(fontkey, font.name);
-      // console.log(commonObjs, commonObjs.has(`${fontkey}f1`));
+      // console.log(commonObjs, operatorlist, page.objs);
 
 
       
-
+      // setpdffile(pdf);
       setcurrentpage(page);
       setpagecontent(contents);
       setoperatorlist(operatorlist);
@@ -222,9 +324,10 @@ function Editor() {
       const viewport = page.getViewport({ scale: pagesize });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      console.log(viewport.height,viewport.width, pagesize);
+      // console.log(viewport.height,viewport.width, pagesize);
       setheight(viewport.height);
       setwidth(viewport.width);
+      
 
       // Render the page into the canvas
       const renderContext = {
@@ -233,10 +336,19 @@ function Editor() {
       };
       page.render(renderContext);
 
+      // const imagedata = canvas.toDataURL();
+      // // console.log(imagedata);
+
+      // const img = new Image();
+      // img.src = imagedata;
+      // setimg(imagedata);
+
+
 // Initialize Fabric.js canvas
 const fabricCanvasElement = fabricCanvasRef.current;
 // fabricCanvasElement.width = fabwidth;
 // fabricCanvasElement.height = fabheight;
+
 
 
 const fabricCanvasInstance = new fabric.Canvas('fabcanvas');
@@ -249,7 +361,7 @@ fabricCanvasInstanceRef.current = fabricCanvasInstance;
 
 return () => {
   canvas.dispose();
-  
+  fabricCanvasInstance.fabric.dispose();
 };
     };
 
@@ -283,14 +395,18 @@ return () => {
     {filePathnew ? (<>
       <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px"}}>
       <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}} />
-      <canvas id="fabcanvas" height={792} width={612} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}}/>
-      </div></>
+      <canvas id="fabcanvas" height={792*2} width={612*2} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",backgroundColor:"grey", opacity:0.5}}/>
+      </div>
+      </>
     ) : (
+      
       <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
       <div style={{position:"absolute",border:"2px solid #4245a8", height:"420px", width:"1020px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
       {<Upload onUpload={setFilePathnew} />}
       </div></div>
+      
     )}
+  
 
   </>
   );
