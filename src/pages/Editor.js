@@ -39,10 +39,20 @@ function Editor() {
 
   // console.log(filePathnew);
 
+  const settextcolor=(e)=>{
+    setcolor(e.target.value);
+    const fabricCanvas = fabricCanvasInstanceRef.current;
+    const activeObject = fabricCanvas.getActiveObject();
+  if (activeObject && activeObject.type === 'i-text') {
+    activeObject.set('fill', color);
+    fabricCanvas.renderAll();
+  }
+
+  }
+
   const handleEditContent = async ()=>{
     const fabricCanvas = fabricCanvasInstanceRef.current;
     fabricCanvas.setZoom(2)
-    console.log(pagecontents.items);
     // console.log(currentpage);
     // console.log(pdffile)
 
@@ -64,6 +74,8 @@ function Editor() {
       const x = transform[4]; // X position
       const y = (height/2) - transform[5]; // Adjust Y for Fabric.js
       const fontName = item.fontName || 'Unknown';
+      let scalefactor = 1;
+      console.log(item)
 
       const commonObjs = currentpage.commonObjs;
 
@@ -78,28 +90,37 @@ function Editor() {
 
     if (isBold) {
       fontWeight = 'bold';
+      scalefactor =0.95;
+
   }
   if (isItalic) {
       fontStyle = 'italic';
   }
 
+  if(transform[0]>=27){
+    scalefactor=0.8;
+  }
+
   // console.log(fontWeight, fontStyle);
       
 
-      console.log(item.str, )
+      // console.log(item.str, )
 
       if(item.str==" "){
       
-      }else{
+      }
+      else{
       const text = new fabric.IText(item.str, {
         left: x,
-        top: y-8,
-        fontSize: transform[0]-1, // Approximate font size
+        top: y+5,
+        fontSize: (transform[0]-1)*scalefactor, // Approximate font size
         fontFamily: fontFamily,
         fontWeight: fontWeight,
         fontStyle: fontStyle,
         fill: 'black',
-        isediting:true,
+        isediting:false,
+        // originX: "left", // Horizontal center alignment
+        originY: "bottom",
         // backgroundColor: "white",
       });
       fabricCanvas.add(text);
@@ -156,11 +177,12 @@ function Editor() {
       switch (type) {
         case "text":
         const text = new fabric.IText("Enter text here", {
-         left: 100,
-         top: 100,
+         left: 1,
+         top: 1,
          fontFamily: "Arial",
          fill: color,
          fontSize: 20,
+         isediting:false,
         });
         fabricCanvas.add(text);
           break;
@@ -224,11 +246,36 @@ function Editor() {
 // Filter for text objects
 const textObjects = objects.filter(obj => obj.type === 'text' || obj.type === 'i-text');
 
+function parseColorToRgb(color) {
+  let rgb = [0, 0, 0]; // Default to black
+  
+  if (color.startsWith('#')) {
+    // Hexadecimal color
+    let hex = color.slice(1);
+    if (hex.length === 3) {
+      hex = hex.split('').map(h => h + h).join(''); // Expand shorthand (#rgb to #rrggbb)
+    }
+    rgb = [
+      parseInt(hex.substring(0, 2), 16),
+      parseInt(hex.substring(2, 4), 16),
+      parseInt(hex.substring(4, 6), 16)
+    ];
+  } else if (color.startsWith('rgb')) {
+    // RGB or RGBA color
+    const match = color.match(/rgba?\((\d+), (\d+), (\d+)/);
+    if (match) {
+      rgb = match.slice(1, 4).map(Number);
+    }
+  }
+
+  return rgb.map(value => value / 255);
+}
+
 // Extract text and their properties
 const textData = textObjects.map(textObj => ({
   text: textObj.text,
   left: textObj.left,
-  top: textObj.top+8,
+  top: textObj.top-5,
   fontSize: textObj.fontSize,
   fontFamily: textObj.fontFamily,
   fontStyle:textObj.fontStyle,
@@ -245,7 +292,7 @@ textData.forEach(item => {
     y: height/2-item.top,
     size: item.fontSize,
     font: boldFont,
-    color: rgb(0,0,0), // Black text
+    color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
   });}
   if(item.fontStyle=='italic'){
     firstPage.drawText(item.text, {
@@ -253,7 +300,7 @@ textData.forEach(item => {
       y: height/2-item.top,
       size: item.fontSize,
       font: italicFont,
-      color: rgb(0,0,0), // Black text
+      color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
     });}
     if(item.fontStyle=='normal'&&item.fontWeight!='bold'){
       firstPage.drawText(item.text, {
@@ -261,7 +308,7 @@ textData.forEach(item => {
         y: height/2-item.top,
         size: item.fontSize,
         font: regularFont,
-        color: rgb(0,0,0), // Black text
+        color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
       });}
 
 });
@@ -376,8 +423,8 @@ return () => {
     <h3 style={{color:"#4245a8"}}>PDF Editor</h3>
       {/* {<Upload onUpload={setFilePathnew} />} */}
       {/* <label>Page No:</label> */}
-      <input type="color" value={color} onChange={(e)=>{setcolor(e.target.value)}} />
-      <p onClick={()=>handleEditContent()}>Edit Content</p>
+      <input type="color" value={color} onChange={(e)=>settextcolor(e)} />
+      <p style={{color:"#4245a8",fontWeight:"bold"}} onClick={()=>handleEditContent()}>Edit Content</p>
 
 
       <p onClick={()=>handleEdit("text")}><i style={{color:"#4245a8", fontSize:"25px"}} class="fa fa-text-width"></i></p>
@@ -394,8 +441,8 @@ return () => {
     
     {filePathnew ? (<>
       <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px"}}>
-      <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px"}} />
-      <canvas id="fabcanvas" height={792*2} width={612*2} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",backgroundColor:"grey", opacity:0.5}}/>
+      <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",marginBottom:"100px"}} />
+      <canvas id="fabcanvas" height={792*2} width={612*2} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",marginBottom:"100px"}}/>
       </div>
       </>
     ) : (
