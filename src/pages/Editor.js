@@ -333,7 +333,7 @@ textData.forEach(item => {
   useEffect(() => {
     const loadPdf = async () => {
       if(isediting==false){
-      setcurrentfile(`http://localhost:5000/${filePathnew}`);}
+      setcurrentfile(`https://pdf-editor-backend-mgej.onrender.com/${filePathnew}`);}
 
       // console.log(filePathnew);
       if (!filePathnew) return;
