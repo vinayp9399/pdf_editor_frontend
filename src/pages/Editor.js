@@ -31,7 +31,12 @@ function Editor() {
   const [operatorlist, setoperatorlist] = useState();
   const [isediting, setisediting] = useState(false);
 
+  const [totalpages,settotalpages] =useState();
+
   const [currentpage, setcurrentpage] =useState();
+
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
 
   const canvasRef = useRef();
   const fabricCanvasRef = useRef(null);
@@ -46,9 +51,16 @@ function Editor() {
   if (activeObject && activeObject.type === 'i-text') {
     activeObject.set('fill', color);
     fabricCanvas.renderAll();
+  }else if (activeObject && activeObject.type === 'rect') {
+    activeObject.set('fill', color);
+    fabricCanvas.renderAll();
+  }else if (activeObject && activeObject.type === 'line') {
+    activeObject.set('stroke', color);
+    fabricCanvas.renderAll();
   }
 
   }
+
 
   const handleEditContent = async ()=>{
     const fabricCanvas = fabricCanvasInstanceRef.current;
@@ -75,7 +87,7 @@ function Editor() {
       const y = (height/2) - transform[5]; // Adjust Y for Fabric.js
       const fontName = item.fontName || 'Unknown';
       let scalefactor = 1;
-      console.log(item)
+      // console.log(item)
 
       const commonObjs = currentpage.commonObjs;
 
@@ -101,26 +113,24 @@ function Editor() {
     scalefactor=0.8;
   }
 
-  // console.log(fontWeight, fontStyle);
-      
-
-      // console.log(item.str, )
-
       if(item.str==" "){
       
       }
       else{
       const text = new fabric.IText(item.str, {
         left: x,
-        top: y+5,
+        top: y-(transform[0]-1)*scalefactor+2,
         fontSize: (transform[0]-1)*scalefactor, // Approximate font size
         fontFamily: fontFamily,
         fontWeight: fontWeight,
         fontStyle: fontStyle,
         fill: 'black',
-        isediting:false,
+        hasControls: true,
+        lockMovementY:true,
+        lockRotation:true,
+        // lockScalingFlip: true,
         // originX: "left", // Horizontal center alignment
-        originY: "bottom",
+        // originY: "bottom",
         // backgroundColor: "white",
       });
       fabricCanvas.add(text);
@@ -138,6 +148,8 @@ function Editor() {
       setpdffile(pdfDoc);
     })
 
+    
+
     setisediting(true);
 
     const pdfBytes = await pdfDoc.save();
@@ -145,7 +157,22 @@ function Editor() {
     setcurrentfile(URL.createObjectURL(blob));
     // setEditedFile(URL.createObjectURL(blob));
     setpdffile(pdfDoc);
+
+    // const objects = fabricCanvas.getObjects();
+
+    // // const rectObjects = objects.filter(obj => obj.type === 'rect');
+    // console.log(objects);
   };
+
+  const handlepageno=(e)=>{
+    if(e.target.value>totalpages || e.target.value<=0){
+      setpageno(1);
+      setpageno(1);
+    }
+    else{
+    setpageno(e.target.value);
+    setpageno(e.target.value);}
+  }
 
   const pageZoomin = async ()=>{
     zoom+= 0.1;
@@ -158,8 +185,15 @@ function Editor() {
   }
 
   const handleClear=()=>{
+    // const fabricCanvas = fabricCanvasInstanceRef.current;
+    // fabricCanvas.clear();
+
     const fabricCanvas = fabricCanvasInstanceRef.current;
-    fabricCanvas.clear();
+    const activeObject = fabricCanvas.getActiveObject();
+  if (activeObject) {
+    fabricCanvas.remove(activeObject);
+    fabricCanvas.discardActiveObject(); // Clear the selection
+    fabricCanvas.renderAll();}
   }
 
 
@@ -174,25 +208,38 @@ function Editor() {
     const firstPage = pages[Number(pageno)-1];
     const fabricCanvas = fabricCanvasInstanceRef.current;
 
+    fabricCanvas.setZoom(2);
+
       switch (type) {
         case "text":
         const text = new fabric.IText("Enter text here", {
-         left: 1,
-         top: 1,
+         left: 100,
+         top:100,
          fontFamily: "Arial",
          fill: color,
          fontSize: 20,
-         isediting:false,
+         hasControls: true,
+         lockRotation:true,
+        //  lockScalingY: true,
+        // lockScalingX: true,
+        // lockScaling: false,
+        // lockMovementY:true,
+         lockScalingFlip: true,
+        //  selectable: true,
         });
         fabricCanvas.add(text);
           break;
       
         case "strike line":
-          const strikeLine = new fabric.Line(
-            [100, 100, 200, 100],
+          const strikeLine = new fabric.Rect(
             {
-              stroke: color,
-              strokeWidth: 2,
+            left: 100,
+            top: 100,
+            width: 100,
+            height: 3,
+            fill: color,
+            hasControls: true,
+            lockScalingFlip: true,
             }
           );
           fabricCanvas.add(strikeLine);
@@ -206,6 +253,8 @@ function Editor() {
             height: 20,
             fill: color,
             opacity: 0.5,
+            hasControls: true,
+            lockScalingFlip: true,
           });
           fabricCanvas.add(highlight);
           break;
@@ -215,11 +264,17 @@ function Editor() {
           break;
       }
 
-    fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
-    fabricCanvas.freeDrawingBrush.width = 5; // Stroke width
-    fabricCanvas.freeDrawingBrush.color = 'rgba(0, 0, 255, 0.7)';
+    // fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
+    // fabricCanvas.freeDrawingBrush.width = 5; // Stroke width
+    // fabricCanvas.freeDrawingBrush.color = 'rgba(0, 0, 255, 0.7)';
 
     // fabricCanvas.sendToBack(highlight);
+
+    setisediting(true);
+
+    // const pdfBytes = await pdfDoc.save();
+    // const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    // setcurrentfile(URL.createObjectURL(blob));
 
     setpdffile(pdfDoc);
 
@@ -239,12 +294,37 @@ function Editor() {
 
     const objects = fabricCanvas.getObjects();
 
+    // console.log(objects);
+
     const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
+  // fabricCanvas.on('object:scaling', (event) => {
+  //   const obj = event.target;
+  //   // console.log(`Width: ${obj.width * obj.scaleX}, Height: ${obj.height * obj.scaleY}`);
+  // });
+
+  // fabricCanvas.on('object:modified', (event) => {
+  //   const obj = event.target;
+  //   obj.set({
+  //     width: obj.width * obj.scaleX,
+  //     height: obj.height * obj.scaleY,
+  //     scaleX: 1,
+  //     scaleY: 1,
+  //   });
+  //   fabricCanvas.renderAll();
+  // });
+
 // Filter for text objects
 const textObjects = objects.filter(obj => obj.type === 'text' || obj.type === 'i-text');
+
+const rectObjects = objects.filter(obj => obj.type === 'rect');
+
+// const lineObjects = objects.filter(obj => obj.type === 'line');
+
+
+
 
 function parseColorToRgb(color) {
   let rgb = [0, 0, 0]; // Default to black
@@ -273,23 +353,46 @@ function parseColorToRgb(color) {
 
 // Extract text and their properties
 const textData = textObjects.map(textObj => ({
-  text: textObj.text,
+  text:textObj.text,
   left: textObj.left,
-  top: textObj.top-5,
-  fontSize: textObj.fontSize,
+  top: textObj.top-2*textObj.scaleY,
+  fontSize: textObj.fontSize* Math.min(textObj.scaleX, textObj.scaleY),
   fontFamily: textObj.fontFamily,
   fontStyle:textObj.fontStyle,
   fontWeight:textObj.fontWeight,
   fill: textObj.fill,
+  // scaleX: textObj.scaleX,
+  // scaleY: textObj.scaleY,
+  // originY: "bottom",
 }));
 
-console.log(textData);
+const rectData = rectObjects.map(rectObj => ({
+  left: rectObj.left,
+  top: rectObj.top,
+  width: rectObj.width*rectObj.scaleX,
+  height: rectObj.height*rectObj.scaleY,
+  fill: rectObj.fill,
+  opacity: rectObj.opacity,
+  // scaleX: rectObj.scaleX,
+  // scaleY: rectObj.scaleY,
+}));
+
+// const lineData = lineObjects.map(lineObj => ({
+//   start: { x: lineObj.x1, y:height/2-lineObj.y1 },
+//     end: { x: lineObj.x2, y:height/2-lineObj.y2 },
+//     thickness: lineObj.strokeWidth, // Line thickness
+//     color: lineObj.stroke, // Line color (red in this case) 
+// }));
+
+
+
+// console.log(textData);
 
 textData.forEach(item => {
   if(item.fontWeight=='bold'){
   firstPage.drawText(item.text, {
     x: item.left,
-    y: height/2-item.top,
+    y: height/2-item.top-item.fontSize,
     size: item.fontSize,
     font: boldFont,
     color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
@@ -297,7 +400,7 @@ textData.forEach(item => {
   if(item.fontStyle=='italic'){
     firstPage.drawText(item.text, {
       x: item.left,
-      y: height/2-item.top,
+      y: height/2-item.top-item.fontSize,
       size: item.fontSize,
       font: italicFont,
       color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
@@ -305,13 +408,39 @@ textData.forEach(item => {
     if(item.fontStyle=='normal'&&item.fontWeight!='bold'){
       firstPage.drawText(item.text, {
         x: item.left,
-        y: height/2-item.top,
+        y: height/2-item.top-item.fontSize,
         size: item.fontSize,
         font: regularFont,
         color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
       });}
 
 });
+
+rectData.forEach(item => {
+
+  firstPage.drawRectangle({
+    x: item.left,
+    y: height/2-item.top-item.height,
+    width: item.width,
+    height: item.height,
+    opacity:item.opacity,
+    color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]),
+  });
+
+});
+
+// lineData.forEach(item => {
+
+//   firstPage.drawLine({
+//     start: { x: item.start.x, y: item.start.y},
+//     end: { x: item.end.x, y: item.end.y},
+//     thickness: item.thickness, // Line thickness
+//     color: rgb(parseColorToRgb(item.color)[0],parseColorToRgb(item.color)[1],parseColorToRgb(item.color)[2]), // Line color (red in this case) 
+//   });
+
+// });
+
+
   
     // firstPage.drawImage(pngImage, {
     //   x: 0,
@@ -340,6 +469,8 @@ textData.forEach(item => {
 
       // Get the PDF document
       const pdf = await pdfjs.getDocument(currentfile).promise;
+
+      settotalpages(pdf.numPages);
 
       // Get the first page of the PDF
       const page = await pdf.getPage(Number(pageno));
@@ -405,7 +536,6 @@ fabricCanvasInstanceRef.current = fabricCanvasInstance;
 // fabricc.setwidth(500);
 // fabricc.setheight(100);
 
-
 return () => {
   canvas.dispose();
   fabricCanvasInstance.fabric.dispose();
@@ -424,17 +554,19 @@ return () => {
       {/* {<Upload onUpload={setFilePathnew} />} */}
       {/* <label>Page No:</label> */}
       <input type="color" value={color} onChange={(e)=>settextcolor(e)} />
-      <p style={{color:"#4245a8",fontWeight:"bold"}} onClick={()=>handleEditContent()}>Edit Content</p>
+      <p style={{color:"#4245a8",fontWeight:"bold",cursor:"pointer"}} onClick={()=>handleEditContent()}><i class="fa fa-edit" style={{color:"#4245a8", fontSize:"25px", position:"relative",top:"3px"}}></i> Edit pdf text</p>
 
 
-      <p onClick={()=>handleEdit("text")}><i style={{color:"#4245a8", fontSize:"25px"}} class="fa fa-text-width"></i></p>
-      <p onClick={()=>handleEdit("strike line")}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-strikethrough"></i></p>
-      <p onClick={()=>handleEdit("highlight")}><LiaMarkerSolid  style={{color:"#4245a8", fontSize:"23px"}}/></p>
-      <p onClick={()=>handleClear()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-eraser"></i></p>
-      <input style={{border:"2px solid #4245a8", width:"30px",height:"30px"}} type="number" value={pageno} onChange={(e) => setpageno(e.target.value)} />
-      <p onClick={()=>pageZoomin()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-search-plus"></i></p>
-      <p onClick={()=>pageZoomOut()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-search-minus"></i></p>
-      <p onClick={()=>saveEdit()}><i style={{color:"#4245a8", fontSize:"23px"}} class="fa fa-save"></i></p>
+      <p onClick={()=>handleEdit("text")}><i style={{color:"#4245a8", fontSize:"25px",cursor:"pointer"}} class="fa fa-text-width"></i></p>
+      <p onClick={()=>handleEdit("strike line")}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-strikethrough"></i></p>
+      <p onClick={()=>handleEdit("highlight")}><LiaMarkerSolid  style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}}/></p>
+      <p onClick={()=>handleClear()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-eraser"></i></p>
+      <div style={{display:"flex", alignItems:"center", gap:"5px"}}><input style={{border:"2px solid #4245a8", width:"30px",height:"25px"}} type="number" value={pageno} onChange={(e) => handlepageno(e)}/><p style={{color:"#4245a8",fontWeight:"bold",cursor:"pointer"}}>/{totalpages}</p></div>
+      <p onClick={()=>pageZoomin()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-search-plus"></i></p>
+      <p onClick={()=>pageZoomOut()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-search-minus"></i></p>
+      {/* <p onClick={()=>undoAction()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-undo"></i></p>
+      <p onClick={()=>redoAction()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-repeat"></i></p> */}
+      <p onClick={()=>saveEdit()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-save"></i></p>
       {<Download editedFile={editedFile}/>}
     </div>
     
@@ -448,7 +580,7 @@ return () => {
     ) : (
       
       <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
-      <div style={{position:"absolute",border:"2px solid #4245a8", height:"420px", width:"1020px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
+      <div style={{position:"absolute",border:"2px solid #4245a8", height:"430px", width:"1220px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
       {<Upload onUpload={setFilePathnew} />}
       </div></div>
       
