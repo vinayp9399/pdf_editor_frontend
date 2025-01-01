@@ -597,7 +597,7 @@ return () => {
           <>
           <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
           <div style={{position:"absolute",border:"2px solid #4245a8", height:"430px", width:"1220px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
-          <div className="loader">
+          <div class="loader">
           </div>
           </div></div>
 
