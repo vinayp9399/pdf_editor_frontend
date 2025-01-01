@@ -464,7 +464,7 @@ rectData.forEach(item => {
   useEffect(() => {
     const loadPdf = async () => {
       if(isediting==false){
-      setcurrentfile(`https://pdf-editor-backend-mgej.onrender.com/${filePathnew}`);}
+      setcurrentfile(`http://localhost:5000/${filePathnew}`);}
 
       // console.log(filePathnew);
       if (!filePathnew) return;
@@ -591,7 +591,6 @@ return () => {
           <div style={{position:"absolute",border:"2px solid #4245a8", height:"430px", width:"1220px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
           {<Upload isUploading={setisuploading} onUpload={setFilePathnew} />}
           </div></div>
-
           </>
         ):(
           <>
