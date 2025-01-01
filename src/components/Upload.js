@@ -1,7 +1,8 @@
 import React from 'react';
 
-function Upload({ onUpload }) {
+function Upload({ onUpload, isUploading }) {
   const handleFileChange = async (event) => {
+    isUploading(true);
     const file = event.target.files[0];
     if (file) {
       const formData = new FormData();
@@ -13,6 +14,7 @@ function Upload({ onUpload }) {
       });
       const result = await response.json();
       onUpload(result.filePath);
+      isUploading(false);
     }
   };
 

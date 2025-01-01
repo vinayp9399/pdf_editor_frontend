@@ -31,12 +31,14 @@ function Editor() {
   const [operatorlist, setoperatorlist] = useState();
   const [isediting, setisediting] = useState(false);
 
+  const [isuploading, setisuploading] = useState(false);
+
   const [totalpages,settotalpages] =useState();
 
   const [currentpage, setcurrentpage] =useState();
 
-  const [undoStack, setUndoStack] = useState([]);
-  const [redoStack, setRedoStack] = useState([]);
+  // const [undoStack, setUndoStack] = useState([]);
+  // const [redoStack, setRedoStack] = useState([]);
 
   const canvasRef = useRef();
   const fabricCanvasRef = useRef(null);
@@ -569,23 +571,44 @@ return () => {
       <p onClick={()=>saveEdit()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-save"></i></p>
       {<Download editedFile={editedFile}/>}
     </div>
+
+
+
+      <>
+      {filePathnew ? (<>
+        <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px"}}>
+        <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",marginBottom:"100px"}} />
+        <canvas id="fabcanvas" height={792*2} width={612*2} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",marginBottom:"100px"}}/>
+        </div>
+        </>
+      ) : (
+        
+        <>
+        {isuploading===false ? 
+        (
+          <>
+          <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
+          <div style={{position:"absolute",border:"2px solid #4245a8", height:"430px", width:"1220px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
+          {<Upload isUploading={setisuploading} onUpload={setFilePathnew} />}
+          </div></div>
+
+          </>
+        ):(
+          <>
+          <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
+          <div style={{position:"absolute",border:"2px solid #4245a8", height:"430px", width:"1220px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
+          Loading....
+          </div></div>
+
+          </>
+        )
+      }
     
-    
-    {filePathnew ? (<>
-      <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px"}}>
-      <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",marginBottom:"100px"}} />
-      <canvas id="fabcanvas" height={792*2} width={612*2} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",transform:`scale(${zoom})`,marginTop:"100px",marginBottom:"100px"}}/>
-      </div>
-      </>
-    ) : (
-      
-      <div style={{position:"relative", display:"flex", justifyContent:"center"}}>
-      <div style={{position:"absolute",border:"2px solid #4245a8", height:"430px", width:"1220px",display:"flex",justifyContent:"center", alignItems:"center",zIndex: 1,marginLeft:"auto",marginTop:"90px",marginRight:"auto"}}>
-      {<Upload onUpload={setFilePathnew} />}
-      </div></div>
+    </>
       
     )}
-  
+        
+        </>
 
   </>
   );
