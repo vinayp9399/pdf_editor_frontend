@@ -8,11 +8,13 @@ function App() {
   const [filePath, setFilePath] = useState(null);
   const [editedFile, setEditedFile] = useState(null);
 
+  fetch(`https://pdf-editor-backend-mgej.onrender.com/empty-files`).then(console.log("Extra Files Deleted"))
+
   return (
     <div>
       {/* <h1>PDF Editor</h1> */}
       {/* <Upload onUpload={setFilePath} /> */}
-      {/* {filePath && <Viewer filePath={`http://localhost:5000/${filePath}`}/>} */}
+      {/* {filePath && <Viewer filePath={`https://pdf-editor-backend-mgej.onrender.com/${filePath}`}/>} */}
       {/* {filePath && ( */}
         <Editor/>
        {/* )}  */}
