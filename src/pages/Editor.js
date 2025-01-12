@@ -40,6 +40,8 @@ function Editor() {
 
   const [currentpage, setcurrentpage] =useState();
 
+  const [isSaving,setisSaving] =useState(false);
+
   // const [undoStack, setUndoStack] = useState([]);
   // const [redoStack, setRedoStack] = useState([]);
 
@@ -290,6 +292,7 @@ function Editor() {
   };
 
   const saveEdit= async ()=>{
+    setisSaving(true);
     const fabricCanvas = fabricCanvasInstanceRef.current;
     const dataUrl = fabricCanvas.toDataURL({ format: 'png' });
     const pngImage = await pdffile.embedPng(dataUrl);
@@ -453,6 +456,8 @@ rectData.forEach(item => {
     setcurrentfile(URL.createObjectURL(blob));
     setEditedFile(URL.createObjectURL(blob));
 
+    setisSaving(false);
+
     fabricCanvas.clear();
   };
 
@@ -551,7 +556,12 @@ return () => {
 
   return (
     <>
-    
+
+{isSaving===true && <>
+<div style={{zIndex: 10, position:"absolute", backgroundColor:'black',opacity:0.5,width:"1285px",height:"1885px",display:"flex"}}>
+    <div style={{margin:"auto",marginTop:"200px",zIndex:20}} class="loader">
+    </div>
+    </div></>}
 
     <div style={{display:"flex", alignItems:"center", justifyContent:"space-around", position:"fixed",zIndex:5, backgroundColor:"rgb(208 212 249)", width:"1285px",margin:"0px"}}>
     <h3 style={{color:"#4245a8"}}>PDF Editor</h3>
@@ -571,14 +581,12 @@ return () => {
       <p onClick={()=>saveEdit()}><i style={{color:"#4245a8", fontSize:"23px",cursor:"pointer"}} class="fa fa-save"></i></p>
       {<Download editedFile={editedFile}/>}
     </div>
-
-
-
       <>
       {filePathnew ? (<>
         <div style={{position:"relative", display:"flex", justifyContent:"center",marginTop:"0px",marginBottom:"50px",padding:"0px",transform:`scale(${zoom})`}}>
         <canvas ref={canvasRef} style={{border:"2px solid #4245a8",position:"absolute",marginTop:"100px",marginBottom:"100px"}} />
         <canvas id="fabcanvas" height={792*2} width={612*2} ref={fabricCanvasInstanceRef} style={{zIndex: 1, position:"absolute",marginTop:"100px",marginBottom:"100px"}}/>
+        
         </div>
         </>
       ) : (
