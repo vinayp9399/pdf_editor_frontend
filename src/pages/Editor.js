@@ -32,7 +32,9 @@ function Editor() {
   const [operatorlist, setoperatorlist] = useState();
   const [pageviewport, setpageviewport]=useState();
   const [isediting, setisediting] = useState(false);
-  const [fontlist, setfontlist] =useState();
+  const [fontlist, setfontlist] =useState([]);
+
+  const [embbedfont, setembbedfont]=useState({});
 
   const [isuploading, setisuploading] = useState(false);
 
@@ -371,68 +373,74 @@ const rectData = rectObjects.map(rectObj => ({
 
 pdfDoc.registerFontkit(fontkit);
 
-// let fontlist1 = [];
+let fontlist1 = [];
+var embbedfont1 ={};
 
-// textData.forEach(item => {
-// fontlist1.append(item.fontFamily);
-// })
+textData.forEach(item => {
+fontlist1.push(item.fontFamily);
+})
 
-// let s = new Set(fontlist1);
+let s = new Set(fontlist1);
 
-// let a1 = [...s]
-// setfontlist(a1);
+let a1 = [...s]
+setfontlist(a1);
+console.log(a1);
 
-// let fonts =[];
+for(let item of a1){
+  if(item=="Calibri"||item=="Arial"||item=="Times New Roman"){
+    var fontboldBytes = await fetch(`https://pdf-editor-backend-mgej.onrender.com/download-font/${item}-bold-normal.ttf`).then((res) =>
+      res.arrayBuffer()
+    )
+
+    var fontitalicBytes = await fetch(`https://pdf-editor-backend-mgej.onrender.com/download-font/${item}-normal-italic.ttf`).then((res) =>
+      res.arrayBuffer()
+    )
+
+    var fontnormalBytes = await fetch(`https://pdf-editor-backend-mgej.onrender.com/download-font/${item}-normal-normal.ttf`).then((res) =>
+      res.arrayBuffer()
+    )
+
+    embbedfont1[`${item}-bold-normal`]= await pdfDoc.embedFont(fontboldBytes);
+    embbedfont1[`${item}-normal-italic`]= await pdfDoc.embedFont(fontitalicBytes);
+    embbedfont1[`${item}-normal-normal`]= await pdfDoc.embedFont(fontnormalBytes);
+  }
+    else{
+      var fontBytes = await fetch(`https://pdf-editor-backend-mgej.onrender.com/download-font/Times New Roman-normal-normal.ttf`).then((res) =>
+        res.arrayBuffer()
+      )
+  
+      embbedfont1[`Times New Roman-normal-normal`]= await pdfDoc.embedFont(fontBytes);
+    }
+}
+
+setembbedfont(embbedfont1);
   
 for(let item of textData){
 
-    console.log(item.fontFamily,item.fontWeight,item.fontStyle);
-    if(item.fontFamily=="Calibri"||item.fontFamily=="Arial"||item.fontFamily=="Times New Roman"){
-    var fontBytes = await fetch(`https://pdf-editor-backend-mgej.onrender.com/download-font/${item.fontFamily}-${item.fontWeight}-${item.fontStyle}.ttf`).then((res) =>
-      res.arrayBuffer()
-    ).catch((error)=>{
-      console.log(error)
-    })
-
-    var font = await pdfDoc.embedFont(fontBytes);
-  }
-    else{
-      var fontBytes = await fetch(`https://pdf-editor-backend-mgej.onrender.com/download-font/Arial-${item.fontWeight}-${item.fontStyle}.ttf`).then((res) =>
-        res.arrayBuffer()
-      ).catch((error)=>{
-        console.log(error)
-      })
+    // console.log(item.fontFamily,item.fontWeight,item.fontStyle);
+    
+  if(item.fontFamily=="Calibri"||item.fontFamily=="Arial"||item.fontFamily=="Times New Roman"){
   
-      var font = await pdfDoc.embedFont(fontBytes);
-    }
-
-  if(item.fontWeight=='bold'){
-
   firstPage.drawText(item.text, {
     x: item.left,
     y: height/2-item.top-item.fontSize,
     size: item.fontSize,
-    font: font,
+    font: embbedfont1[`${item.fontFamily}-${item.fontWeight}-${item.fontStyle}`],
     color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
-  });}
-  if(item.fontStyle=='italic'){
-
+  });
+  }
+  else{
     firstPage.drawText(item.text, {
       x: item.left,
       y: height/2-item.top-item.fontSize,
       size: item.fontSize,
-      font: font,
+      font: embbedfont1[`Times New Roman-normal-normal`],
       color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
-    });}
-    if(item.fontStyle=='normal'&&item.fontWeight!='bold'){
+    });
+  }
 
-      firstPage.drawText(item.text, {
-        x: item.left,
-        y: height/2-item.top-item.fontSize,
-        size: item.fontSize,
-        font: font,
-        color: rgb(parseColorToRgb(item.fill)[0],parseColorToRgb(item.fill)[1],parseColorToRgb(item.fill)[2]), // Black text
-      });}
+
+  
     }
   
 
